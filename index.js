@@ -45,15 +45,15 @@ async function run() {
     const verifyToken = (req, res, next) => {
       // console.log(req.headers.authorization);
       if (!req.headers.authorization){
-        return res.status(401).send({message: 'Forbidden Access'})
+        return res.status(401).send({message: 'Unauthorized Access'})
       } 
       const token = req.headers.authorization.split(' ')[1];
       if(!token) {
-        return res.status(401).send({ message: "Forbidden Access" });
+        return res.status(401).send({ message: "Unauthorized Access" });
       }
       jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (error, decoded)=> {
         if(error){
-          return res.status(401).send({ message: "Forbidden Access" });
+          return res.status(401).send({ message: "Unauthorized Access" });
         } else {
           req.decoded = decoded;
           next();
@@ -64,11 +64,11 @@ async function run() {
 
     const verifyAdmin = async (req, res, next)=> {
       const email = req.decoded.email;
-      const query = {email: email};
+      const query = {email: email}; 
       const user = await usersCollection.findOne(query)
       const isAdmin = user?.role === 'admin';
       if(!isAdmin) {
-        return res.status(403).send({message: "Forbidden Access"})
+        return res.status(403).send({ message: "Forbidden Access" });
       }
       next()
     }
@@ -141,6 +141,14 @@ async function run() {
       res.send(result);
     });
 
+
+    app.post('/menu', verifyToken, verifyAdmin, async(req, res)=> {
+      const item = req.body;
+      const result = await menuCollection.insertOne(item);
+      res.send(result)
+    })
+
+
     app.get("/reviews", async (req, res) => {
       const result = await reviewsCollection.find().toArray();
       res.send(result);
@@ -154,6 +162,35 @@ async function run() {
       res.send(result)
     })
 
+
+
+
+
+    // 
+    app.get('/menu/:id', async (req, res)=> {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await menuCollection.findOne(query);
+      res.send(result)
+    })
+
+    // 
+    app.patch('/menu/:id', async(req, res)=> {
+      const id = req.params.id;
+      const item = req.body;
+      const query = {_id: new ObjectId(id)};
+      const updatedDoc = {
+        $set: {
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          recipe: item.recipe,
+          image: item.image
+        }
+      }
+      const result = await menuCollection.updateOne(query, updatedDoc)
+      res.send(result)
+    })
 
 
 
@@ -173,6 +210,13 @@ async function run() {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)}
       const result = await cartsCollection.deleteOne(query);
+      res.send(result)
+    })
+
+    app.delete('/menu/:id', verifyToken, verifyAdmin, async(req, res)=> {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await menuCollection.deleteOne(query);
       res.send(result)
     })
 
